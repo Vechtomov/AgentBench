@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Tuple
 
 import docker
 import docker.models.containers
+from docker.transport.npipesocket import NpipeSocket
 
 from src.server.task import Task, Session
 from src.typings import (
@@ -17,10 +18,25 @@ from src.typings import (
     TaskSampleExecutionResult,
     SampleStatus,
 )
+import time
+
+
+class DummyOutput:
+    output: str
+    exit_code: int
+
+    def __init__(self, code, o):
+        self.output = o
+        self.exit_code = code
+
+
+def remove_ansi_codes(text):
+    ansi_escape = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
+    return ansi_escape.sub("", text)
 
 
 class Container:
-    def __init__(self, image):
+    def __init__(self, image: str, sock_timeout: float = 5):
         self.image = image
         self.client = docker.from_env()
         self.container: docker.models.containers.Container = self.client.containers.run(
@@ -34,10 +50,13 @@ class Container:
         self.exec_id = self.client.api.exec_create(
             self.container.id, "bash --login", stdin=True, tty=True
         )["Id"]
-        self.sock = self.client.api.exec_start(self.exec_id, socket=True)._sock
-        self.sock.settimeout(5)
+        self.sock: NpipeSocket = self._create_sock()
+        self.sock.settimeout(sock_timeout)
         # clear buffer
         self.sock.recv(1000)
+
+    def _create_sock(self) -> NpipeSocket:
+        return self.client.api.exec_start(self.exec_id, socket=True)
 
     def __del__(self):
         try:
@@ -45,40 +64,57 @@ class Container:
         except:
             pass
 
+    def sock_read(self, n: int, raise_err: bool = True):
+        buffer = bytearray(n)
+        try:
+            self.sock.recv_into(buf=buffer, nbytes=n)
+        except TimeoutError:
+            if raise_err:
+                raise
+            else:
+                return None
+        return buffer
+
+    def read_data(self):
+        data = self.sock_read(8, raise_err=False)
+        if not data:
+            print("no data")
+            return None
+        _, n = struct.unpack(">BxxxL", data)
+        return self.sock_read(n)
+
     def execute(self, command: str):
-        class DummyOutput:
-            output: bytes
-            exit_code: int
-
-            def __init__(self, code, o):
-                self.output = o
-                self.exit_code = code
-
-        # print("=== EXECUTING ===\n", command)
         if not isinstance(command, str):
             return DummyOutput(-1, b"")
-        self.sock.send(command.encode("utf-8") + b"\n")
-        # ignore input line
-        data = self.sock.recv(8)
-        _, n = struct.unpack(">BxxxL", data)
-        _ = self.sock.recv(n)
-        output = b""
+
+        print("---------SEND CMD---------")
+        print(command)
+        command_bytes = command.encode("utf-8")
+        self.sock.send(command_bytes + b"\n")
+        pattern = b"\x1b.+@.+[#|$] "
+
+        output = ""
+        line = None
         while True:
             try:
-                data = self.sock.recv(8)
-                # print(data)
-                if not data:
+                start = time.time()
+                line = self.read_data()
+                if line is None:
                     break
-                _, n = struct.unpack(">BxxxL", data)
-                line = self.sock.recv(n)
-                output += line
-                if re.search(b"\x1b.+@.+[#|$] ", line):
-                    break
+                line = re.sub(pattern, b"", line)
+                s = remove_ansi_codes(line.decode("utf-8"))
+                print("Line", (time.time() - start) * 1000, s)
+                output += s
             except TimeoutError:
                 break
             except socket.timeout:
                 break
-        return DummyOutput(0, output)
+        cleaned_output = re.sub("\r", "", output)
+        cleaned_output = re.sub(command, "", cleaned_output, count=1)
+        print("---------RESULT---------")
+        print(cleaned_output)
+        result = DummyOutput(0, cleaned_output)
+        return result
 
     def execute_independent(self, command, *params):
         # print("=== EXECUTING INDEPENDENT ===\n", command)
@@ -151,7 +187,7 @@ ls /etc
     {
         "role": "user",
         "content": "The output of the OS:\ncpi cron.hourly fuse.conf iproute2 lvm networkd-dispatcher protocols "
-                   "selinux tmpfiles.d [truncated because the output is too long]",
+        "selinux tmpfiles.d [truncated because the output is too long]",
     },
     {
         "role": "agent",
@@ -335,7 +371,7 @@ class OSInteraction(Task):
                 right_par_pos = content.rfind(")")
                 if left_par_pos == -1 or right_par_pos == -1:
                     continue
-                content = content[left_par_pos + 1: right_par_pos]
+                content = content[left_par_pos + 1 : right_par_pos]
                 ret["action"] = "commit"
                 ret["content"] = content
                 break
@@ -381,7 +417,6 @@ class OSInteraction(Task):
     async def _judge(
         self, session: Session, config: JudgeConfig, container: Container
     ) -> TaskSampleExecutionResult:
-
         print("exec start")
         if config.init_script:
             for script in config.init_script:
@@ -468,7 +503,7 @@ If the output is too long, I will truncate it. The truncated output is not compl
                 break
             elif action == "bash":
                 result = await asyncio.to_thread(container.execute, content)
-                result = result.output.decode("utf-8")
+                result = result.output
                 if len(result) > 800:
                     result = (
                         result[:780] + "\n[truncated because the output is too long]"

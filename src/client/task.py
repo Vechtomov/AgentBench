@@ -17,7 +17,7 @@ class TaskError(enum.Enum):
 
 class TaskClient:
     def __init__(
-        self, name: str, controller_address: str = "http://localhost:5000/api", *_, **__,
+        self, name: str, controller_address: str = "http://localhost:6000/api", *_, **__,
     ) -> None:
         self.name = name
         self.controller_address = controller_address
@@ -101,14 +101,17 @@ class TaskClient:
                         session_id=sid,
                         agent_response=response,
                     ).dict(),
+                    timeout=20
                 )
             except Exception as e:
+                output = self._fulfill_output_with_agent_response(latest_result, response=response)
                 return TaskClientOutput(
                     error=TaskError.NETWORK_ERROR.value,
                     info=str(e),
-                    output=latest_result,
+                    output=output,
                 )
             if result.status_code != 200:
+                output = self._fulfill_output_with_agent_response(latest_result, response=response)
                 requests.post(
                     self.controller_address + "/cancel",
                     json=CancelRequest(session_id=sid).dict(),
@@ -116,13 +119,22 @@ class TaskClient:
                 return TaskClientOutput(
                     error=TaskError.INTERACT_FAILED.value,
                     info=result.text,
-                    output=latest_result,
+                    output=output,
                 )
 
             result = result.json()
             latest_result = result
         # TODO: check this type and check where history is
         return TaskClientOutput(output=result["output"])
+    
+    def _fulfill_output_with_agent_response(self, output, response):
+        if isinstance(output, TaskOutput):
+            agent_last_resp = ChatHistoryItem(role='agent', content=response)
+            if output.history:
+                output.history.append(agent_last_resp)
+            else:
+                output.history = [agent_last_resp]
+        return output
 
     def calculate_overall(self, results: List[TaskOutput]) -> JSONSerializable:
         statistics = {s: 0 for s in SampleStatus}

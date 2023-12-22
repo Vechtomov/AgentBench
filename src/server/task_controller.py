@@ -710,7 +710,7 @@ class TaskController:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port", "-p", type=int, default=5000)
+    parser.add_argument("--port", "-p", type=int, default=6000)
 
     cmd_args = parser.parse_args()
 

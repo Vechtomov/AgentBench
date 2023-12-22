@@ -2,7 +2,7 @@ default:
   module: src.server.tasks.dbbench.DBBench
   parameters:
     concurrency: 1
-    max_round: 15
+    max_round: 5
 
 dbbench-dev:
   parameters:
