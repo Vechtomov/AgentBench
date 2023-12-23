@@ -86,6 +86,9 @@ class Container:
     def execute(self, command: str):
         if not isinstance(command, str):
             return DummyOutput(-1, b"")
+        
+        # flush buffer
+        self.sock_read(1000, raise_err=False)
 
         print("---------SEND CMD---------")
         print(command)
@@ -110,7 +113,7 @@ class Container:
             except socket.timeout:
                 break
         cleaned_output = re.sub("\r", "", output)
-        cleaned_output = re.sub(command, "", cleaned_output, count=1)
+        cleaned_output = re.sub(re.escape(command), "", cleaned_output, count=1)
         print("---------RESULT---------")
         print(cleaned_output)
         result = DummyOutput(0, cleaned_output)
