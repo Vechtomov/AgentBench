@@ -3,13 +3,10 @@ import glob
 import json
 import os
 import re
-import socket
-import struct
 from typing import List, Dict, Any, Tuple
 
 import docker
 import docker.models.containers
-from docker.transport.npipesocket import NpipeSocket
 
 from src.server.task import Task, Session
 from src.typings import (
@@ -19,6 +16,62 @@ from src.typings import (
     SampleStatus,
 )
 import time
+import paramiko
+
+def create_ssh_client(
+    hostname="localhost", port=2222, username="root", password="1234"
+):
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(hostname, port=port, username=username, password=password)
+    return client
+
+
+def create_shell(client: paramiko.SSHClient):
+    channel = client.invoke_shell(width=1000)
+    return channel
+
+
+def clean_terminal_output(output):
+    ansi_escape = re.compile(r"(\x1b\[[0-?]*[ -/]*[@-~])|(\r)")
+    cleaned_output = ansi_escape.sub("", output)
+    return cleaned_output
+
+
+def extract_relevant_output(output):
+    # Adjusted pattern to match the Linux command prompt
+    pattern = re.compile(r"(\w+@\w+:[~\/\w-]*[#\$])")
+
+    # Split the output based on the pattern
+    parts = pattern.split(output)
+
+    # Filter out empty strings and reconstruct the output
+    cleaned_output = "".join([part for part in parts if part.strip()])
+
+    # Exclude the first and last prompts from the reconstructed output
+    prompts = pattern.findall(cleaned_output)
+
+    if prompts:
+        first_prompt_pos = cleaned_output.find(prompts[0])
+        # last_prompt_pos = cleaned_output.rfind(prompts[-1])
+        cleaned_output = cleaned_output[first_prompt_pos:].strip()
+
+    return cleaned_output, prompts[-1]
+
+
+def execute_command_shell(channel: paramiko.Channel, command: str):
+    channel.send(command + "\n")
+    while not channel.recv_ready():
+        time.sleep(0.1)
+
+    time.sleep(0.5)
+
+    output = b""
+    while channel.recv_ready():
+        output += channel.recv(1024)
+
+    processed_output = output.decode("utf-8").rstrip()
+    return clean_terminal_output(processed_output)
 
 
 class DummyOutput:
@@ -30,13 +83,8 @@ class DummyOutput:
         self.exit_code = code
 
 
-def remove_ansi_codes(text):
-    ansi_escape = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
-    return ansi_escape.sub("", text)
-
-
 class Container:
-    def __init__(self, image: str, sock_timeout: float = 5):
+    def __init__(self, image: str, port: int = 2222, username="root", password="1234"):
         self.image = image
         self.client = docker.from_env()
         self.container: docker.models.containers.Container = self.client.containers.run(
@@ -46,78 +94,39 @@ class Container:
             stdin_open=True,
             remove=True,
             labels={"created_by": "os-pipeline"},
+            ports={"22/tcp": port},
         )
-        self.exec_id = self.client.api.exec_create(
-            self.container.id, "bash --login", stdin=True, tty=True
-        )["Id"]
-        self.sock: NpipeSocket = self._create_sock()
-        self.sock.settimeout(sock_timeout)
-        # clear buffer
-        self.sock.recv(1000)
-
-    def _create_sock(self) -> NpipeSocket:
-        return self.client.api.exec_start(self.exec_id, socket=True)
+        self.ssh_client = create_ssh_client(
+            port=port, username=username, password=password
+        )
+        self.channel = create_shell(self.ssh_client)
+        self.last_line = None
 
     def __del__(self):
         try:
+            self.channel.close()
+            self.ssh_client.close()
             self.container.stop()
         except:
             pass
 
-    def sock_read(self, n: int, raise_err: bool = True):
-        buffer = bytearray(n)
-        try:
-            self.sock.recv_into(buf=buffer, nbytes=n)
-        except TimeoutError:
-            if raise_err:
-                raise
-            else:
-                return None
-        return buffer
-
-    def read_data(self):
-        data = self.sock_read(8, raise_err=False)
-        if not data:
-            print("no data")
-            return None
-        _, n = struct.unpack(">BxxxL", data)
-        return self.sock_read(n)
-
     def execute(self, command: str):
         if not isinstance(command, str):
             return DummyOutput(-1, b"")
-        
-        # flush buffer
-        self.sock_read(1000, raise_err=False)
 
         print("---------SEND CMD---------")
         print(command)
-        command_bytes = command.encode("utf-8")
-        self.sock.send(command_bytes + b"\n")
-        pattern = b"\x1b.+@.+[#|$] "
+        print("---------EXECUTING---------")
+        result = execute_command_shell(self.channel, command)
+        print(result)
+        if self.last_line is not None:
+            result = self.last_line + result
 
-        output = ""
-        line = None
-        while True:
-            try:
-                start = time.time()
-                line = self.read_data()
-                if line is None:
-                    break
-                line = re.sub(pattern, b"", line)
-                s = remove_ansi_codes(line.decode("utf-8"))
-                print("Line", (time.time() - start) * 1000, s)
-                output += s
-            except TimeoutError:
-                break
-            except socket.timeout:
-                break
-        cleaned_output = re.sub("\r", "", output)
-        cleaned_output = re.sub(re.escape(command), "", cleaned_output, count=1)
+        result, last_line = extract_relevant_output(result)
+        self.last_line = last_line
         print("---------RESULT---------")
-        print(cleaned_output)
-        result = DummyOutput(0, cleaned_output)
-        return result
+        print(result)
+        return DummyOutput(0, result)
 
     def execute_independent(self, command, *params):
         # print("=== EXECUTING INDEPENDENT ===\n", command)
@@ -154,7 +163,6 @@ class Container:
         else:
             raise ValueError("Unsupported language")
         return self.container.exec_run(cmd)
-
 
 class JudgeConfig:
     image: str = None
