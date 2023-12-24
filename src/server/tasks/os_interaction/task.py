@@ -262,6 +262,8 @@ class OSInteraction(Task):
         for item in config_raw:
             config = JudgeConfig()
             config.description = item["description"]
+            if "additional_info" in item:
+                config.description += item["additional_info"]
             if "create" in item:
                 config.image = (
                     item["create"]["image"]
