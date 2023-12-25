@@ -1,0 +1,332 @@
+[
+    {
+        "description": "The problem is related to process management in the Linux operating system. You will need to find the total number of active processes running in the user's Linux (ubuntu) operating system. \n\nYou are required to write a bash script that counts all the active processes and displays the count as an integer value.\n\nWe will initialize the environment by creating an additional 5 processes that will run for 60 seconds each in the background.",
+        "explanation": "To solve this problem, you will need to count all the active processes using the 'ps' command by combining it with other utilities like 'grep', 'awk', or 'wc'. A hint is to use the 'ps -A' or 'ps -e' option with 'ps' command to list all the processes running in the system.",
+        "create": {
+            "init": "\n#!/bin/bash\n\nfor i in {1..5}\ndo\n  (sleep 60) &\ndone"
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\n\nps -A | wc -l"
+        }
+    },
+    {
+        "description": "In this problem, your task is to find the total count of processes that are currently running on the student's Linux (Ubuntu) operating system having 'bash' in their command name or path. The answer must be an integer.",
+        "explanation": "To solve this problem, you can use the 'ps' command to get the list of processes and 'grep' command to filter out the desired processes containing 'bash' in their command name or path. Here are a few hints on how to construct your command:\n\n1. Use 'ps -ef' to display the processes for all users.\n2. You need to use 'grep' command to find the processes containing 'bash' in their command name/path.\n3. Count the number of lines which indicates the number of matched processes.\n4. You may want to combine these steps in a pipeline for the easy retrieval of the desired result.",
+        "create": {
+            "init": "\n#!/bin/bash\n# This is a simple initialization script that does nothing, but you can add any necessary setup steps if needed.\necho \"Initialization completed.\""
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "ps -ef | grep -i 'bash' | grep -v 'grep' | wc -l"
+        }
+    },
+    {
+        "description": "As a student, you are required to calculate the total size of all files with a specific file extension in a given directory and its subdirectories. You have to use Linux (Ubuntu) operating system commands to achieve this. The file extension and directory path will be given to you as input arguments.",
+        "explanation": "1. First, navigate to the given directory using the 'cd' command.\n2. Then, use the 'find' command to search for all files with the specified file extension.\n3. Use the 'wc' and 'stat' commands to calculate the sizes of the individual files.\n4. Finally, use the 'awk' command to sum up the sizes of all files.",
+        "create": {
+            "init": "\nmkdir -p problem_dir/sub1/sub2\necho \"This is a test file\" > problem_dir/testfile1.txt\necho \"This is another test file\" > problem_dir/sub1/testfile2.txt\necho \"This is the third test file\" > problem_dir/sub1/sub2/testfile3.txt\necho \"This is a PDF file\" > problem_dir/sub1/sub2/testfile4.pdf"
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "cd problem_dir\nfind . -type f -iname \"*.txt\" -exec stat -c\"%s\" {} \\; | awk '{total=total+$1} END {print total}'"
+        },
+        "additional_info": "\nThe directory is 'problem_dir'. The file extension is 'txt'."
+    },
+    {
+        "description": "Design a problem that challenges students to count the number of lines containing the word \"error\" in all files with the extension \".log\" in the current directory (excluding subdirectories). Count only lines where \"error\" appears and is not part of another word. For example, \"errors\" should not be counted. The output should be an integer.",
+        "explanation": "To solve this problem, students need to use various Linux commands to filter and count lines containing the word \"error\" in the specified files. They can use commands like grep, find, wc, and xargs to achieve this.\n\nHint: Students may want to combine the grep and find commands with xargs to filter the appropriate files and lines.",
+        "create": {
+            "init": "\n#!/bin/bash\n\n# Create the necessary log files for the experiment\necho \"Error on line 1\" > file1.log\necho \"Correct on line 2\" >> file1.log\necho \"error on line 3\" >> file1.log\necho \"errors on line 4\" >> file1.log\n\necho \"Log message without error\" > file2.log\necho \"Another error on line 2\" >> file2.log\necho \"Error in caps ERROR\" >> file2.log\n\necho \"No errors here\" > file3.log\necho \"error error\" >> file3.log\n\n# Create a non-log file for control\necho \"error non-log file\" > notlogfile.txt"
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "# The following command can be used to get the standard answer\nfind . -maxdepth 1 -name '*.log' -print0 | xargs -0 grep -iw '\\<error\\>' | wc -l"
+        }
+    },
+    {
+        "description": "You are using a Linux operating system (Ubuntu), and your task is to find out the total number of processes that are using a specific user's UID.\n\nIn this exercise, you'll use standard Linux command-line utilities like 'ps', 'grep', and 'wc' to achieve this. Additionally, you will execute an initialization script that simulates an environment with a specific number of processes running as that specific user.\n\nYour answer should be an integer representing the total number of processes running as that user.",
+        "explanation": "To solve this problem, you have to first run the initialization script which will create a user and spawn a certain number of processes owned by that user. Next, you will use the 'ps' command to list out the processes along with their user IDs and filter the results with 'grep' to find only the processes running as our specific user. Lastly, you will count the number of lines using 'wc' to get the total number of processes running as that user.",
+        "create": {
+            "init": "\n#!/bin/bash\nUSERNAME=\"temp_student\"\nuseradd $USERNAME\nCOUNT=5\n\nfor i in $(seq 1 $COUNT); do\n  sudo -u $USERNAME sleep 1000 &\ndone"
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\nps -eo user:30,command | grep \"^temp_student\" | wc -l"
+        }
+    },
+    {
+        "description": "You are given a Linux file system with two directories named \"dir1\" and \"dir2\". Both directories contain a set of text files. Your task is to write a bash script to count the total number of lines in all the text files that reside in both \"dir1\" and \"dir2\". Please only consider the files with '.txt' extension.",
+        "explanation": "To solve this problem, you can use `find` command to locate '.txt' files in the given directories, and then use `wc` command with '-l' option to count the total number of lines in those files. Finally, sum the count of lines from both the directories.",
+        "create": {
+            "init": "\n#!/bin/bash\nmkdir -p dir1 dir2\n\necho \"Hello world\" > dir1/file1.txt\necho -e \"This is a test\\nAdding more content\" > dir1/file2.txt\necho \"Another hello world\" > dir2/file3.txt\necho -e \"This is another test\\nAdding even more content\" > dir2/file4.txt\n\necho \"Initialization done.\""
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\ncount_dir1=$(find dir1 -iname \"*.txt\" -exec wc -l {} + | awk '{s+=$1} END {print s}')\ncount_dir2=$(find dir2 -iname \"*.txt\" -exec wc -l {} + | awk '{s+=$1} END {print s}')\n\ntotal_count=$((count_dir1 + count_dir2))\necho \"$total_count\""
+        }
+    },
+    {
+        "description": "You are given a task to monitor system usage in a Linux (Ubuntu) operating system. You are required to calculate the percentage of the available memory (in integers) that has been used on the system. To do this, you will first execute an initialization script to deploy the environment on each student's Linux system, and then execute a piece of code to produce an integer as the standard answer. Your task is to devise a problem, bash scripts for initialization, and an example script to calculate the used memory percentage.\n\nPlease keep in mind that the question description must be related to the Linux operating system and the output must only contain integers.",
+        "explanation": "To solve the problem, students should extract the total and free memory values from the 'free' command and calculate the used memory percentage with integers. An example bash script would parse this information and calculate the result.\n\nStudents might also want to explore the 'free' command and how to manipulate text output using tools like 'grep' and 'awk'.",
+        "create": {
+            "init": "\n#!/bin/bash\n# This script does not require any specific environment setup.\n# It simply demonstrates how to run the 'free' command, which is included in the Ubuntu system.\n# You can add more code here if required.\necho \"Environment initialized.\""
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\n# Get 'free' command output, filter memory lines with 'grep' and extract total memory and free memory\ntotal_mem=$(free -m | grep Mem | awk '{print $2}')\nfree_mem=$(free -m | grep Mem | awk '{print $4}')\n\n# Calculate used memory percentage (integer)\nused_mem_percentage=$(( (total_mem - free_mem) * 100 / total_mem ))\n\n# Display the used memory percentage (integer) as output\necho \"${used_mem_percentage}\""
+        }
+    },
+    {
+        "description": "Your task is to calculate the total size of all files in a given directory, including files in its subdirectories, and return the total size in bytes. The given directory is `/home/user/experiment` which contains multiple subdirectories and files of different sizes.\n\nNOTE: You should not use any pre-built tools or commands to return the total directory size directly (e.g., `du`). You are required to find the size of each file individually and calculate the total sum. The answer must be an integer.",
+        "explanation": "To solve this problem, you can use the `find` command to list all the files recursively in the given directory. Then you can use `-exec` with `wc` or `stat` command to get the size of each file individually and parse the output to get the size in bytes. Finally, sum the sizes and output the result.",
+        "create": {
+            "init": "\n#!/bin/bash\nmkdir -p /home/user/experiment/dir1/dir2\nmkdir -p /home/user/experiment/dir1/dir3\nmkdir -p /home/user/experiment/dir4\necho \"Hello World\" > /home/user/experiment/dir1/file1.txt\necho \"I am a programmer\" > /home/user/experiment/dir1/file2.txt\necho \"This is a script\" > /home/user/experiment/dir1/dir2/file3.txt\necho \"Linux is fun\" > /home/user/experiment/dir1/dir3/file4.txt\necho \"Operating systems are interesting\" > /home/user/experiment/dir4/file5.txt"
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\nfind /home/user/experiment -type f -exec stat -c \"%s\" {} \\; | awk '{total+=$1} END {print total}'"
+        },
+        "additional_info": "\nThe directory is '/home/user/experiment'.'''', '\\\\n'.join(solution)] for s in solution]\nprint('Your response:\\n')\nfor line in response:\n    print(line)\n"
+    },
+    {
+        "description": "In this problem, the students should calculate the total number of files and directories (recursive) in a given directory. The directory will be created and populated with files and directories by the initialization script. During the initialization, a specific environment variable `TARGET_DIR` will be set pointing to the created directory, which should be used by the students in their command.\n\nYou need to find the total number of files and directories (recursive) in the directory pointed by `TARGET_DIR`. Use the command line to achieve this and submit your answer as an integer. ",
+        "explanation": "To solve this problem, you can use the 'find' command to search for files and directories in the given directory. The 'wc' command can be used to count lines, which represent the number of files and directories found.\n\nHere is a hint on how you could structure your command using `find` and `wc`:\n\n```bash\nfind $TARGET_DIR -type f -o -type d | wc -l\n```\n\nThe above command searches for files and directories in the given target directory and counts the number of resulting lines.",
+        "create": {
+            "init": "\n#!/bin/bash\n# Create the target directory\nexport TARGET_DIR=$HOME/TA_problem\nmkdir -p $TARGET_DIR\n\n# Create sub-directories and files\nmkdir -p $TARGET_DIR/dir1\ntouch $TARGET_DIR/dir1/file1.txt\nmkdir -p $TARGET_DIR/dir1/dir2\ntouch $TARGET_DIR/dir1/dir2/file2.txt\ntouch $TARGET_DIR/dir1/dir2/file3.txt\nmkdir -p $TARGET_DIR/dir3\ntouch $TARGET_DIR/dir3/file4.txt\n"
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "find $TARGET_DIR -type f -o -type d | wc -l"
+        },
+        "additional_info": "\nThe environment variable used in the command is 'TARGET_DIR'. The value of this variable needs to be set pointing to a directory which will be created and populated with files and directories by an initialization script. This variable should be accessible during the execution of the task."
+    },
+    {
+        "description": "In this experiment, you will be asked to find the number of lines for each type of file in a directory specified during the initialization step. You are required to find the count of lines for the following types of files: .txt, .csv, and .log. Your answer should be in the format of `TXT_COUNT CSV_COUNT LOG_COUNT`, separated by spaces.\n\nTo make it more challenging, you need to find the line count by only using a single command. You are allowed to use pipes to pass the output of one command to another if needed.\n\nMake sure not to count empty lines or lines that only contain whitespaces (spaces or tabs).",
+        "explanation": "To solve this problem, you can use the `find` command to search for files with specified extensions (.txt, .csv, and .log), then use the `grep` command to filter out empty lines or lines containing only whitespaces, and finally use the `wc` command to count the number of lines.",
+        "create": {
+            "init": "\n#!/bin/bash\nmkdir -p experiment && cd experiment\necho -e \"Ubuntu\\nDebian\\nArch\\n\" > distros.txt\necho -e \"John,Doe,30\\nJane,Doe,28\\n\" > sample.csv\necho -e \"2022-01-01 14:34:21 [INFO] Server Started.\\n\" > server.log"
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "find . \\( -iname '*.txt' -o -iname '*.csv' -o -iname '*.log' \\) -exec cat {} + | grep -v '^$' | grep -v '^[[:space:]]*$' | wc -l"
+        }
+    },
+    {
+        "description": "In this problem, you are required to count the total number of lines and the total number of words in all '*.txt' files in your current working directory. The output should be an integer value which calculates the sum of the total number of lines and the total number of words as a single integer.\n\nNote: Make sure to consider only '*.txt' files in the current working directory and ignore files in subdirectories.",
+        "explanation": "To solve this problem, you can use the `wc` command with the `-l` option to count the total number of lines and the `-w` option to count the total number of words in the '*.txt' files. To find and pass the '*.txt' files to the `wc` command, you can use the `find` command with the `-maxdepth` option.",
+        "create": {
+            "init": "\n#!/bin/bash\n\n# Create sample txt files for testing\necho \"This is a sample text file.\" > file1.txt\necho \"This txt file will be used as an example to test your code.\" > file2.txt\necho \"Please make sure to only count lines and words in '*.txt' files.\" > file3.txt\n\n# Create a sample subdirectory with a txt file\nmkdir subdir\necho \"This txt file should not be included in the count.\" > subdir/file4.txt"
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\n\n# Count total lines and words in all '*.txt' files in the current working directory\nfind . -maxdepth 1 -iname \"*.txt\" -exec wc -lw {} + | awk 'END {print $1 + $2}'"
+        }
+    },
+    {
+        "description": "You have been given a task to analyze the file permissions of all the files in a specific directory. You need to calculate the sum of the octal file permissions of each file in the directory. Assume that there are no subdirectories, only regular files in the given directory.\n\nYour task is as follows:\n\n1. Create a directory called 'task_directory'.\n2. Create several files in 'task_directory' with random file permissions.\n3. Calculate the sum of the octal file permissions for all the files in 'task_directory'.",
+        "explanation": "Here's a step-by-step breakdown to solve the problem:\n\n1. Navigate to 'task_directory' using the `cd` command.\n2. Use the `stat` command (with the appropriate flags) to get the octal permissions of each file in the directory.\n3. Extract only the integer part of the file permissions using `cut` or `awk` command.\n4. Add all the permissions together using a loop or `paste` with the appropriate flags.\n\nYou can also use `find` command to get the list of files in the directory and calculate the sum directly, without navigating into the directory.",
+        "create": {
+            "init": "\n#!/bin/bash\n\nmkdir task_directory\ncd task_directory\n\necho \"Simple text\" >file1.txt\necho \"Another example\" >file2.txt\necho \"Third file\" >file3.txt\n\nchmod 654 file1.txt\nchmod 711 file2.txt\nchmod 600 file3.txt\n\ncd .."
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\n\ncd task_directory\n\n# Get octal file permissions, extract the integer part, add them up\nsum=0\nfor file in *\ndo\n  octal=$(stat -c '%a' \"$file\")\n  sum=$((sum + octal))\ndone\n\n# Print the sum\necho $sum"
+        },
+        "additional_info": "\nThere is no information about how to create the directory 'task_directory' and generate files with random file permissions in it. The description should include instructions for creating the directory, generating the files, and specifying their random file permissions."
+    },
+    {
+        "description": "In this problem, you are required to determine the total number of files and directories present in a given directory, as well as the total size (in kilobytes) of those files and directories within that given directory. The answer should be a single integer representing the summation of the total number of files, directories, and their total combined size in kilobytes. \n\nFor example, if there are 10 files and 5 directories, and the total combined size of those files and directories is 500 KB, the output would be 515.",
+        "explanation": "To solve this problem, you will need to use basic Linux commands such as `find`, `stat`, and `awk` to get the total number of files and directories and the combined size of those files and directories. You can then add these two values to get the final answer.\n\nFirst, use the `find` command to list all files and directories within the given directory. Then, use `stat` to get the size of each file and directory in bytes. After that, use `awk` to sum up the sizes and convert them to kilobytes. Finally, add the total number of files and directories to the total size in kilobytes.",
+        "create": {
+            "init": "\n#!/bin/bash\nmkdir -p test_directory\ncd test_directory\necho \"Sample text file 1\" > file1.txt\necho \"Sample text file 2\" > file2.txt\nmkdir folder1\necho \"Sample text file 3\" > folder1/file3.txt\ncd .."
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\ncd test_directory\ntotal_files=$(find . -type f -or -type d | wc -l)\ntotal_size=$(find . -type f -exec stat -c\"%s\" {} \\; | awk '{sum+=$1} END {print int(sum/1024)}')\nresult=$((total_files + total_size))\necho \"$result\""
+        },
+        "additional_info": "\nThe directory is 'test_directory'. The output format is a single integer representing the summation of the total number of files, directories, and their total combined size in kilobytes."
+    },
+    {
+        "description": "You are given a folder named \"log_folder\" containing log files from a server. These log files are named in the format \"log_YYYY-MM-DD.txt\" (for example, \"log_2022-10-01.txt\"). Your task is to find out the number of log files in the \"log_folder\" that were created exactly 30 days or more ago from the current date.",
+        "explanation": "To solve this problem, you'll have to perform the following steps:\n1. Find the current date and subtract 30 days to get the threshold date.\n2. Use a loop to iterate through all the files in \"log_folder.\"\n3. In each iteration, compare the date in the file name with the threshold date.\n4. If the date in the file name is less than or equal to the threshold date, increment the counter.\n5. Finally, print the counter as the output.\n\nHint: You can use \"date\" command to find the current date, and GNU 'date' '-d' argument to modify dates.",
+        "create": {
+            "init": "\nmkdir -p log_folder\ntouch log_folder/log_2022-05-01.txt\ntouch log_folder/log_2022-06-10.txt\ntouch log_folder/log_2022-07-05.txt\ntouch log_folder/log_2022-07-15.txt"
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\nthreshold_date=$(date -d \"-30 days\" +'%Y-%m-%d')\ncounter=0\n\nfor file in log_folder/*.txt; do\n    file_date=$(basename \"$file\" | awk -F_ -vOFS='-' '{print $2}' | awk -F. -vOFS='-' '{print $1}')\n    if [[ \"$file_date\" < \"$threshold_date\" || \"$file_date\" == \"$threshold_date\" ]]; then\n        counter=$((counter + 1))\n    fi\ndone\n\necho $counter"
+        }
+    },
+    {
+        "description": "As a Linux user, you are asked to calculate the total line count of all the \".txt\" files in a given directory, including its subdirectories. Note that you should only count the lines in the text files that contain at least one occurrence of a specified keyword.\n\nYou need to perform the following tasks:\n\n1. Write a Bash script to generate the directory structure with sample \".txt\" files.\n2. Write a Bash script to calculate the total line count as described.",
+        "explanation": "To solve this problem, you need to have a good understanding of the find command in Linux. You will use the find command to search for all \".txt\" files in the specified directory, including its subdirectories. Then, use grep to find lines containing the specified keyword and wc to count the number of lines.",
+        "create": {
+            "init": "\n#!/bin/bash\n\n# Set up the directory structure\nmkdir -p experiment\ncd experiment\necho \"Creating directories and .txt files\"\nmkdir -p folder1 folder2 folder3\necho \"This is a keyword test\" > folder1/file1.txt\necho \"This is not a keyword test\" > folder1/file2.txt\necho \"Another line\" >> folder1/file2.txt\necho \"Keyword\" > folder2/file3.txt\necho \"Testing keyword again\" > folder3/file4.txt\necho \"Keyword\" >> folder3/file4.txt\ncd .."
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\n\n# Enter the created 'experiment' directory\ncd experiment\n\n# Check for the keyword\nkeyword=\"keyword\"\n\n# Find all the .txt files, filter for lines containing the keyword, and count the total number\nfind . -type f -name \"*.txt\" -exec grep -i -H \"$keyword\" {} \\; | wc -l"
+        },
+        "additional_info": "\nThe directory for generating sample \".txt\" files is 'experiment'. The keyword to search in the text files is 'keyword'."
+    },
+    {
+        "description": "You have been given the responsibility to manage a list of files with specific naming conventions in your Linux operating system. To do this effectively, you need to perform the following tasks:\n\n1. Create a directory named \"file_analysis\" in the home directory.\n2. Inside the \"file_analysis\" directory, generate 100 text files named \"file-number.txt,\" where the number is replaced with their corresponding index in the range ",
+        "explanation": "To solve this problem, follow these steps:\n\n1. Create a directory using the `mkdir` command.\n2. Use a loop to create the files and write the index values.\n3. Use `grep`, `awk` or `sed` to filter odd indexed files and a loop to read the contents.\n4. Perform the arithmetic operation to calculate the sum.",
+        "create": {
+            "init": "\n#!/bin/bash\n\n# Create the file_analysis folder in the home directory\nmkdir ~/file_analysis\n\n# Create 100 files within the file_analysis folder\nfor i in {1..100}; do\n  echo $i > ~/file_analysis/file-$i.txt\ndone"
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\n\n# Initialize the sum\nsum=0\n\n# Calculate the sum of odd indexed files\nfor i in {1..100..2}; do\n  num=$(cat ~/file_analysis/file-$i.txt)\n  sum=$((sum + num))\ndone\n\n# Output the sum as a single integer\necho $sum"
+        }
+    },
+    {
+        "description": "In this task, you need to find the total number of files and directories in a given directory, excluding the directory itself and hidden files or directories (files or directories that start with a dot, `.`). To complete this task, you will be provided with an initialization script that sets up the directory, and your goal is to return an integer value representing the total number of non-hidden files and directories within that directory.",
+        "explanation": "To solve this problem, you can use various Linux commands and utilities such as `ls`, `grep`, and `wc`. You can use `ls` to list all the files and directories in the specified directory, and then use `grep` to filter out the hidden files or directories. Finally, you can use `wc` to count the remaining lines to get the total number of non-hidden files and directories.",
+        "create": {
+            "init": "\n#!/bin/bash\nmkdir experiment_directory\ntouch experiment_directory/file1.txt\ntouch experiment_directory/file2.txt\ntouch experiment_directory/.hidden_file.txt\nmkdir experiment_directory/dir1\nmkdir experiment_directory/dir2\nmkdir experiment_directory/.hidden_dir"
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\nls -l experiment_directory | grep -v \"^d\\| \\.\" | wc -l"
+        },
+        "additional_info": "\nThe initialization script is 'ls -l experiment_directory'."
+    },
+    {
+        "description": "As a student, you must calculate the total number of bytes used by all the \".txt\" files in a given directory. This directory is created and filled with files using an initialization script. To solve this problem, you need to use the Linux command line tools in your Ubuntu operating system. After calculating the total number of bytes, submit your answer as an integer value.",
+        "explanation": "To solve this problem, you should:\n\n1. Use the `find` command to filter and find all the \".txt\" files in the directory.\n2. Use the `xargs` command to pass the list of files to another command (in this case, `du` command).\n3. Use the `du` command with the `-b` flag to get the byte size of each file.\n4. Use the `awk` command to sum the sizes of each file.",
+        "create": {
+            "init": "\n#!/bin/bash\n\nmkdir problem_directory\ncd problem_directory\n\necho \"Hello, World!\" > file1.txt\necho \"Linux is awesome!\" > file2.txt\necho \"This is a test file.\" > file3.txt\necho \"Have a productive day!\" > file4.txt\necho \"Random string 12345\" > file5.txt\n\ntouch not_included1.pdf\ntouch not_included2.doc\n\ncd .."
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "find problem_directory -type f -name \"*.txt\" | xargs du -b | awk '{sum += $1} END {print sum}'"
+        }
+    },
+    {
+        "description": "As a Linux system administrator, you need to monitor the system regularly to ensure it runs smoothly. You have been given a task to collect information on the total generated system load in your Linux (Ubuntu) operating system. The total generated system load is based on three main factors: the number of running processes, the amount of used memory, and the percentage of used disk space.\n\nFor this task, you are to write a shell command that combines the three factors as outlined below:\n\n1. Compute the number of running processes. This excludes kernel threads and system processes.\n2. Calculate the percentage of used memory (excluding buffers/cache).\n3. Calculate the percentage of used disk space on the root (/) partition.\n\nLastly, return the sum of the three factors as a single integer.",
+        "explanation": "To solve the problem, you can use multiple shell commands to collect the required data and then combine the output into a single value. The following commands can be used to get the individual factors:\n\n1. Use `ps -e -o user | grep -v \"root\" | wc -l` to obtain the number of running processes.\n2. Use `free | grep Mem | awk '{print int(($3-$7)/$2 * 100)}'` to calculate the used memory percentage.\n3. Use `df -h | grep \"/$\" | awk '{print int($5)}'` to get the used disk space percentage on the root partition.\n\nCombine these commands to calculate the final total system load as an integer.",
+        "create": {
+            "init": "\n#!/bin/bash\n# No initial setup required for this problem, as it uses default system tools."
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\nrunning_processes=$(ps -e -o user | grep -v \"root\" | wc -l)\nused_memory_percent=$(free | grep Mem | awk '{print int(($3-$7)/$2 * 100)}')\nused_disk_space_percent=$(df -h | grep \"/$\" | awk '{print int($5)}')\n\ntotal_system_load=$((running_processes + used_memory_percent + used_disk_space_percent))\necho $total_system_load"
+        }
+    }
+]

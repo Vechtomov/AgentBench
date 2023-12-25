@@ -114,9 +114,9 @@ class Container:
         if not isinstance(command, str):
             return DummyOutput(-1, b"")
 
-        print("---------SEND CMD---------")
-        print(command)
-        print("---------EXECUTING---------")
+        # print("---------SEND CMD---------")
+        # print(command)
+        # print("---------EXECUTING---------")
         result = execute_command_shell(self.channel, command)
         print(result)
         if self.last_line is not None:
@@ -124,8 +124,8 @@ class Container:
 
         result, last_line = extract_relevant_output(result)
         self.last_line = last_line
-        print("---------RESULT---------")
-        print(result)
+        # print("---------RESULT---------")
+        # print(result)
         return DummyOutput(0, result)
 
     def execute_independent(self, command, *params):
