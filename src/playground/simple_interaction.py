@@ -1,4 +1,3 @@
-import json
 import time
 from src.client.agent import AgentClient
 from src.playground.prompts import SYSTEM_PROMPT, ONE_SHOT
@@ -6,7 +5,9 @@ from src.server.tasks.os_interaction.task import Container, JudgeConfig
 from src.typings.output import AgentOutput
 from src.typings.status import AgentOutputStatus
 import re
-import random
+import itertools
+import logging
+
 
 def extract_action(raw: str):
     think_pattern = r"Think:\s*(.+)"
@@ -46,16 +47,18 @@ def extract_action(raw: str):
     return ret
 
 
+ports = range(2222, 2232)
+ports_generator = iter(itertools.cycle(ports))
+
+
 class OSSimpleInteraction:
-    
     def __init__(self, config: JudgeConfig, client: AgentClient) -> None:
         self.config = config
         self.client = client
         self.history = []
         self.round_limit = 6
-        # port = random.randint(2222, 2232)
-        port = 2222
-        self.container = Container("local-os/default", port=port)
+        self.port = next(ports_generator)
+        self.container = Container("local-os/default", port=self.port)
 
     def run(self):
         config = self.config
@@ -82,21 +85,28 @@ class OSSimpleInteraction:
             }
         )
 
-        print("----------DESCRIPTION----------")
-        print(self.config.description)
-        print("----------HISTORY----------")
+        logging.info("----------DESCRIPTION----------")
+        logging.info(self.config.description)
+        logging.info("----------HISTORY----------")
 
         for _ in range(self.round_limit):
             agent_start = time.time()
-            content = self.client.inference(self.history)
-            root = AgentOutput(content=content)
-            if root.status == AgentOutputStatus.AGENT_CONTEXT_LIMIT:
-                return {"result": False, "status": "AGENT_CONTEXT_LIMIT"}
-            if root.status != AgentOutputStatus.NORMAL:
-                return {"result": False, "status": "UNKNOWN"}
-            print("---AGENT---", time.time() - agent_start)
-            print(root.content)
-            print()
+            try:
+                content = self.client.inference(self.history)
+                root = AgentOutput(content=content)
+            except:
+                return {"result": False, "status": "CLIENT_CALL_ERROR"}
+
+            logging.info("---AGENT--- %s", time.time() - agent_start)
+            logging.info(root.content)
+            logging.info("")
+            self.history.append(
+                {
+                    "role": "agent",
+                    "content": root.content,
+                }
+            )
+
             root = extract_action(root.content)
             if "action" not in root:
                 return {"result": False, "status": "AGENT_VALIDATION_FAILED"}
@@ -112,13 +122,13 @@ class OSSimpleInteraction:
                 env_start = time.time()
                 result = self.container.execute(content)
                 result = result.output
-                if len(result) > 800:
+                if len(result) > 1600:
                     result = (
-                        result[:780] + "\n[truncated because the output is too long]"
+                        result[:1580] + "\n[truncated because the output is too long]"
                     )
-                print("---ENV---", time.time() - env_start)
-                print(result)
-                print()
+                logging.info("---ENV--- %s", time.time() - env_start)
+                logging.info(result)
+                logging.info("")
                 self.history.append(
                     {
                         "role": "user",
@@ -128,18 +138,14 @@ class OSSimpleInteraction:
                     }
                 )
         else:
-            return (
-                {
-                    "result": False,
-                    "status": "TASK_LIMIT_REACHED",
-                },
-            )
+            return {"result": False, "status": "TASK_LIMIT_REACHED"}
 
         if isinstance(answer, str) and config.match and config.match["strip"]:
             answer = answer.strip()
 
         jd = False
 
+        last_check = None
         if config.match:
             if "answer" in config.match:
                 jd = answer == config.match["answer"]
@@ -152,15 +158,13 @@ class OSSimpleInteraction:
                     script = config.example_script
                 response = self.container.execute_independent(script, *params)
                 if response.exit_code != 0:
+                    last_check = params
                     jd = False
                     break
                 params.append(response.output.decode("utf-8"))
             else:
                 jd = True
         else:
-            return {"result": False, "reason": "UNKNOWN"}
+            return {"result": False, "status": "UNKNOWN"}
 
-        return {
-            "result": jd,
-            "status": "COMPLETED",
-        }
+        return {"result": jd, "status": "COMPLETED", "check": last_check}

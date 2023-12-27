@@ -38,7 +38,7 @@ ls /etc
     },
     {
         "role": "user",
-        "content": "The output of the OS:\ncpi cron.hourly fuse.conf iproute2 lvm networkd-dispatcher protocols "
+        "content": "The output of the OS:\nroot@22c211a1549e:/#ls /etc\ncpi cron.hourly fuse.conf iproute2 lvm networkd-dispatcher protocols "
         "selinux tmpfiles.d [truncated because the output is too long]",
     },
     {
@@ -51,11 +51,38 @@ Act: bash
 ls -1 /etc | wc -l
 ```""",
     },
-    {"role": "user", "content": "The output of the OS:\n220"},
+    {
+        "role": "user",
+        "content": "The output of the OS:\nroot@22c211a1549e:/#ls -1 /etc | wc -l\n220\nroot@22c211a1549e:/#",
+    },
     {
         "role": "agent",
         "content": """Think: Now I get the answer, it is 220.
 
 Act: answer(220)""",
+    },
+    {
+        "role": "user",
+        "content": "Now, I will start a new problem in a new OS. My problem is:\n\nwhat is the home directory?",
+    },
+    {
+        "role": "agent",
+        "content": """Think: I need to go to ~ to see the directory name.
+
+Act: bash
+
+```bash
+cd ~
+```""",
+    },
+    {
+        "role": "user",
+        "content": "The output of the OS:\nroot@22c211a1549e:/#cd ~\nroot@22c211a1549e:/hello#",
+    },
+    {
+        "role": "agent",
+        "content": """Think: From the terminal output looks like I'm in 'hello' directory after going to home directory.
+
+Act: answer(hello)""",
     },
 ]

@@ -1,7 +1,7 @@
 module: src.client.agents.HTTPAgent
 parameters:
   # url: https://api.openai.com/v1/chat/completions
-  url: http://127.0.0.1:5001/v1/chat/completions
+  url: http://127.0.0.1:5000/v1/chat/completions
   headers:
     Content-Type: application/json
     Authorization: Bearer sk-111111111111111111111111111111111111111111111111

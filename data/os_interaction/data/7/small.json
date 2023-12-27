@@ -1,39 +1,5 @@
 [
     {
-        "description": "The problem is related to process management in the Linux operating system. You will need to find the total number of active processes running in the user's Linux (ubuntu) operating system. \n\nYou are required to write a bash script that counts all the active processes and displays the count as an integer value.\n\nWe will initialize the environment by creating an additional 5 processes that will run for 60 seconds each in the background.",
-        "explanation": "To solve this problem, you will need to count all the active processes using the 'ps' command by combining it with other utilities like 'grep', 'awk', or 'wc'. A hint is to use the 'ps -A' or 'ps -e' option with 'ps' command to list all the processes running in the system.",
-        "create": {
-            "init": "\n#!/bin/bash\n\nfor i in {1..5}\ndo\n  (sleep 60) &\ndone"
-        },
-        "evaluation": {
-            "check": [
-                null,
-                {
-                    "language": "python",
-                    "file": "check/integer-match.py"
-                }
-            ],
-            "example": "#!/bin/bash\n\nps -A | wc -l"
-        }
-    },
-    {
-        "description": "In this problem, your task is to find the total count of processes that are currently running on the student's Linux (Ubuntu) operating system having 'bash' in their command name or path. The answer must be an integer.",
-        "explanation": "To solve this problem, you can use the 'ps' command to get the list of processes and 'grep' command to filter out the desired processes containing 'bash' in their command name or path. Here are a few hints on how to construct your command:\n\n1. Use 'ps -ef' to display the processes for all users.\n2. You need to use 'grep' command to find the processes containing 'bash' in their command name/path.\n3. Count the number of lines which indicates the number of matched processes.\n4. You may want to combine these steps in a pipeline for the easy retrieval of the desired result.",
-        "create": {
-            "init": "\n#!/bin/bash\n# This is a simple initialization script that does nothing, but you can add any necessary setup steps if needed.\necho \"Initialization completed.\""
-        },
-        "evaluation": {
-            "check": [
-                null,
-                {
-                    "language": "python",
-                    "file": "check/integer-match.py"
-                }
-            ],
-            "example": "ps -ef | grep -i 'bash' | grep -v 'grep' | wc -l"
-        }
-    },
-    {
         "description": "As a student, you are required to calculate the total size of all files with a specific file extension in a given directory and its subdirectories. You have to use Linux (Ubuntu) operating system commands to achieve this. The file extension and directory path will be given to you as input arguments.",
         "explanation": "1. First, navigate to the given directory using the 'cd' command.\n2. Then, use the 'find' command to search for all files with the specified file extension.\n3. Use the 'wc' and 'stat' commands to calculate the sizes of the individual files.\n4. Finally, use the 'awk' command to sum up the sizes of all files.",
         "create": {
