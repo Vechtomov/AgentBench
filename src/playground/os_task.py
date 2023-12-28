@@ -47,7 +47,8 @@ def main():
         ConfigLoader().load_from(agents_file)["gpt-3.5-turbo-0613"]
     ).create()
 
-    config_path = data_folder / "data" / "7" / "small.json"
+    # config_path = data_folder / "data" / "7" / "small.json"
+    config_path = data_folder / "data" / "7" / "tiny.json"
     script_root_dir = data_folder / "scripts" / "7"
     configs = load_configs(
         config_path=str(config_path), script_root_dir=script_root_dir
@@ -57,6 +58,7 @@ def main():
     results_folder.mkdir(exist_ok=True)
     result_filename = results_folder / f"os_task-{date}.jsonl"
 
+    # for cfg in configs[0:1]:
     for cfg in configs:
         try:
             start = time.time()
@@ -64,7 +66,7 @@ def main():
             result = task.run()
             result["history"] = task.history[len(ONE_SHOT) :]
             logging.info(
-                "-----FINISH----- %s %s", result["status"], time.time() - start
+                "-----FINISH----- %s %s %s", result["status"], result['result'], time.time() - start
             )
             with open(result_filename, "a") as file:
                 json.dump(result, file)

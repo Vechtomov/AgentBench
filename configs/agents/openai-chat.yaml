@@ -6,7 +6,7 @@ parameters:
     Content-Type: application/json
     Authorization: Bearer sk-111111111111111111111111111111111111111111111111
   body:
-    temperature: 0
+    temperature: 0.01
   prompter:
     name: role_content_dict
     args:

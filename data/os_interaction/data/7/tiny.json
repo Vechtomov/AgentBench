@@ -1,0 +1,88 @@
+[
+    {
+        "description": "As a student, you are required to calculate the total size of all files with a specific file extension in a given directory and its subdirectories. You have to use Linux (Ubuntu) operating system commands to achieve this. The file extension and directory path will be given to you as input arguments.",
+        "explanation": "1. First, navigate to the given directory using the 'cd' command.\n2. Then, use the 'find' command to search for all files with the specified file extension.\n3. Use the 'wc' and 'stat' commands to calculate the sizes of the individual files.\n4. Finally, use the 'awk' command to sum up the sizes of all files.",
+        "create": {
+            "init": "\nmkdir -p problem_dir/sub1/sub2\necho \"This is a test file\" > problem_dir/testfile1.txt\necho \"This is another test file\" > problem_dir/sub1/testfile2.txt\necho \"This is the third test file\" > problem_dir/sub1/sub2/testfile3.txt\necho \"This is a PDF file\" > problem_dir/sub1/sub2/testfile4.pdf"
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "cd problem_dir\nfind . -type f -iname \"*.txt\" -exec stat -c\"%s\" {} \\; | awk '{total=total+$1} END {print total}'"
+        },
+        "additional_info": "\nThe directory is 'problem_dir'. The file extension is 'txt'."
+    },
+    {
+        "description": "Design a problem that challenges students to count the number of lines containing the word \"error\" in all files with the extension \".log\" in the current directory (excluding subdirectories). Count only lines where \"error\" appears and is not part of another word. For example, \"errors\" should not be counted. The output should be an integer.",
+        "explanation": "To solve this problem, students need to use various Linux commands to filter and count lines containing the word \"error\" in the specified files. They can use commands like grep, find, wc, and xargs to achieve this.\n\nHint: Students may want to combine the grep and find commands with xargs to filter the appropriate files and lines.",
+        "create": {
+            "init": "\n#!/bin/bash\n\n# Create the necessary log files for the experiment\necho \"Error on line 1\" > file1.log\necho \"Correct on line 2\" >> file1.log\necho \"error on line 3\" >> file1.log\necho \"errors on line 4\" >> file1.log\n\necho \"Log message without error\" > file2.log\necho \"Another error on line 2\" >> file2.log\necho \"Error in caps ERROR\" >> file2.log\n\necho \"No errors here\" > file3.log\necho \"error error\" >> file3.log\n\n# Create a non-log file for control\necho \"error non-log file\" > notlogfile.txt"
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "# The following command can be used to get the standard answer\nfind . -maxdepth 1 -name '*.log' -print0 | xargs -0 grep -iw '\\<error\\>' | wc -l"
+        }
+    },
+    {
+        "description": "You are using a Linux operating system (Ubuntu), and your task is to find out the total number of processes that are using a specific user's UID.\n\nIn this exercise, you'll use standard Linux command-line utilities like 'ps', 'grep', and 'wc' to achieve this. Additionally, you will execute an initialization script that simulates an environment with a specific number of processes running as that specific user.\n\nYour answer should be an integer representing the total number of processes running as that user.",
+        "explanation": "To solve this problem, you have to first run the initialization script which will create a user and spawn a certain number of processes owned by that user. Next, you will use the 'ps' command to list out the processes along with their user IDs and filter the results with 'grep' to find only the processes running as our specific user. Lastly, you will count the number of lines using 'wc' to get the total number of processes running as that user.",
+        "create": {
+            "init": "\n#!/bin/bash\nUSERNAME=\"temp_student\"\nuseradd $USERNAME\nCOUNT=5\n\nfor i in $(seq 1 $COUNT); do\n  sudo -u $USERNAME sleep 1000 &\ndone"
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\nps -eo user:30,command | grep \"^temp_student\" | wc -l"
+        }
+    },
+    {
+        "description": "You are given a Linux file system with two directories named \"dir1\" and \"dir2\". Both directories contain a set of text files. Your task is to write a bash script to count the total number of lines in all the text files that reside in both \"dir1\" and \"dir2\". Please only consider the files with '.txt' extension.",
+        "explanation": "To solve this problem, you can use `find` command to locate '.txt' files in the given directories, and then use `wc` command with '-l' option to count the total number of lines in those files. Finally, sum the count of lines from both the directories.",
+        "create": {
+            "init": "\n#!/bin/bash\nmkdir -p dir1 dir2\n\necho \"Hello world\" > dir1/file1.txt\necho -e \"This is a test\\nAdding more content\" > dir1/file2.txt\necho \"Another hello world\" > dir2/file3.txt\necho -e \"This is another test\\nAdding even more content\" > dir2/file4.txt\n\necho \"Initialization done.\""
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\ncount_dir1=$(find dir1 -iname \"*.txt\" -exec wc -l {} + | awk '{s+=$1} END {print s}')\ncount_dir2=$(find dir2 -iname \"*.txt\" -exec wc -l {} + | awk '{s+=$1} END {print s}')\n\ntotal_count=$((count_dir1 + count_dir2))\necho \"$total_count\""
+        }
+    },
+    {
+        "description": "You are given a task to monitor system usage in a Linux (Ubuntu) operating system. You are required to calculate the percentage of the available memory (in integers) that has been used on the system. To do this, you will first execute an initialization script to deploy the environment on each student's Linux system, and then execute a piece of code to produce an integer as the standard answer. Your task is to devise a problem, bash scripts for initialization, and an example script to calculate the used memory percentage.\n\nPlease keep in mind that the question description must be related to the Linux operating system and the output must only contain integers.",
+        "explanation": "To solve the problem, students should extract the total and free memory values from the 'free' command and calculate the used memory percentage with integers. An example bash script would parse this information and calculate the result.\n\nStudents might also want to explore the 'free' command and how to manipulate text output using tools like 'grep' and 'awk'.",
+        "create": {
+            "init": "\n#!/bin/bash\n# This script does not require any specific environment setup.\n# It simply demonstrates how to run the 'free' command, which is included in the Ubuntu system.\n# You can add more code here if required.\necho \"Environment initialized.\""
+        },
+        "evaluation": {
+            "check": [
+                null,
+                {
+                    "language": "python",
+                    "file": "check/integer-match.py"
+                }
+            ],
+            "example": "#!/bin/bash\n# Get 'free' command output, filter memory lines with 'grep' and extract total memory and free memory\ntotal_mem=$(free -m | grep Mem | awk '{print $2}')\nfree_mem=$(free -m | grep Mem | awk '{print $4}')\n\n# Calculate used memory percentage (integer)\nused_mem_percentage=$(( (total_mem - free_mem) * 100 / total_mem ))\n\n# Display the used memory percentage (integer) as output\necho \"${used_mem_percentage}\""
+        }
+    }
+]

@@ -100,8 +100,9 @@ class Container:
             port=port, username=username, password=password
         )
         self.channel = create_shell(self.ssh_client)
-        execute_command_shell(self.channel, "cd /")
-        self.last_line = None
+        result = execute_command_shell(self.channel, "cd /")
+        _, last_line = extract_relevant_output(result)
+        self.last_line = last_line
 
     def __del__(self):
         try:
