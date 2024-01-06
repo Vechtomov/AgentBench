@@ -23,7 +23,7 @@ def create_ssh_client(
 ):
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(hostname, port=port, username=username, password=password)
+    client.connect(hostname, port=port, username=username, password=password, timeout=1)
     return client
 
 
@@ -96,6 +96,7 @@ class Container:
             labels={"created_by": "os-pipeline"},
             ports={"22/tcp": port},
         )
+        self.wait_for_container_start()
         self.ssh_client = create_ssh_client(
             port=port, username=username, password=password
         )
@@ -104,10 +105,26 @@ class Container:
         _, last_line = extract_relevant_output(result)
         self.last_line = last_line
 
+    def wait_for_container_start(self):
+        while True:
+            container_info = self.client.containers.get(self.container.id)
+            if container_info.status == 'running':
+                break
+            time.sleep(0.1)
+        time.sleep(0.5)
+
     def __del__(self):
         try:
             self.channel.close()
+        except:
+            pass
+
+        try:
             self.ssh_client.close()
+        except:
+            pass
+        
+        try:
             self.container.stop()
         except:
             pass

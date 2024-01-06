@@ -7,6 +7,17 @@ from src.typings.status import AgentOutputStatus
 import re
 import itertools
 import logging
+from enum import Enum, auto
+
+
+class TaskStatus(Enum):
+    UNKNOWN = auto()
+    COMPLETED = auto()
+    ANSWER = auto()
+    CLIENT_CALL_ERROR = auto()
+    AGENT_VALIDATION_FAILED = auto()
+    AGENT_INVALID_ACTION = auto()
+    TASK_LIMIT_REACHED = auto()
 
 
 def extract_action(raw: str):
@@ -61,13 +72,7 @@ class OSSimpleInteraction:
         self.container = Container("local-os/default", port=self.port)
 
     def run(self):
-        config = self.config
-        if self.config.init_script:
-            for script in self.config.init_script:
-                self.container.execute_independent(script)
-
-        if self.config.start:
-            self.container.execute(self.config.start[1])
+        self._init_scripts()
 
         initial_message = (
             SYSTEM_PROMPT + "Now, my problem is:\n\n" + ONE_SHOT[0]["content"]
@@ -89,13 +94,75 @@ class OSSimpleInteraction:
         logging.info(self.config.description)
         logging.info("----------HISTORY----------")
 
+        num_attempts = 2
+        result = False
+        check_details = None
+
+        for i in range(1, num_attempts + 1):
+            status, info = self._round()
+            if status == TaskStatus.ANSWER:
+                result, check_details = self._evaluate(answer=info)
+                if result or i == num_attempts:
+                    break
+
+                self.history.append(
+                    {
+                        "role": "user",
+                        "content": "This is the wrong answer, I give you another attempt. Try to think carefully and check your answer.",
+                    }
+                )
+
+            else:
+                if i == num_attempts:
+                    return {
+                        "result": False,
+                        "status": TaskStatus.TASK_LIMIT_REACHED.name,
+                    }
+
+                if status == TaskStatus.AGENT_INVALID_ACTION:
+                    self.history.append(
+                        {
+                            "role": "user",
+                            "content": f"Looks like you provided invalid action name: {info}",
+                        }
+                    )
+                elif status == TaskStatus.AGENT_VALIDATION_FAILED:
+                    self.history.append(
+                        {
+                            "role": "user",
+                            "content": "Looks like you didn't provide the action",
+                        }
+                    )
+                elif status == TaskStatus.TASK_LIMIT_REACHED:
+                    self.history.append(
+                        {
+                            "role": "user",
+                            "content": "Looks like you have almost reached the limit of attempts. Try to change your strategy.",
+                        }
+                    )
+
+        return {
+            "result": result,
+            "status": TaskStatus.COMPLETED.name,
+            "check": check_details,
+        }
+
+    def _init_scripts(self):
+        if self.config.init_script:
+            for script in self.config.init_script:
+                self.container.execute_independent(script)
+
+        if self.config.start:
+            self.container.execute(self.config.start[1])
+
+    def _round(self):
         for _ in range(self.round_limit):
             agent_start = time.time()
             try:
                 content = self.client.inference(self.history)
                 root = AgentOutput(content=content)
             except:
-                return {"result": False, "status": "CLIENT_CALL_ERROR"}
+                return TaskStatus.CLIENT_CALL_ERROR, None
 
             logging.info("---AGENT--- %s", time.time() - agent_start)
             logging.info(root.content)
@@ -109,15 +176,14 @@ class OSSimpleInteraction:
 
             root = extract_action(root.content)
             if "action" not in root:
-                return {"result": False, "status": "AGENT_VALIDATION_FAILED"}
+                return TaskStatus.AGENT_VALIDATION_FAILED, None
             if root["action"] not in ["bash", "commit"]:
-                return {"result": False, "status": "AGENT_INVALID_ACTION"}
+                return TaskStatus.AGENT_INVALID_ACTION, root["action"]
 
             action = root["action"]
             content = root["content"]
             if action == "commit":
-                answer = content
-                break
+                return TaskStatus.ANSWER, content
             elif action == "bash":
                 env_start = time.time()
                 result = self.container.execute(content)
@@ -137,20 +203,28 @@ class OSSimpleInteraction:
                         else "The output of the OS is empty.",
                     }
                 )
-        else:
-            return {"result": False, "status": "TASK_LIMIT_REACHED"}
+
+        return TaskStatus.TASK_LIMIT_REACHED, None
+
+    def _evaluate(self, answer):
+        config = self.config
 
         if isinstance(answer, str) and config.match and config.match["strip"]:
             answer = answer.strip()
 
-        jd = False
+        details = None
 
-        last_check = None
         if config.match:
             if "answer" in config.match:
-                jd = answer == config.match["answer"]
+                return answer == config.match["answer"], [
+                    answer,
+                    config.match["answer"],
+                ]
             elif "regex" in config.match:
-                jd = re.search(config.match["regex"], answer) is not None
+                return re.search(config.match["regex"], answer) is not None, [
+                    answer,
+                    config.match["regex"],
+                ]
         elif config.check:
             params = [str(answer)]
             for script in config.check:
@@ -158,13 +232,10 @@ class OSSimpleInteraction:
                     script = config.example_script
                 response = self.container.execute_independent(script, *params)
                 if response.exit_code != 0:
-                    last_check = params
-                    jd = False
-                    break
+                    details = list(map(lambda x: x.strip(), params))
+                    return False, details
                 params.append(response.output.decode("utf-8"))
             else:
-                jd = True
+                return True, details
         else:
-            return {"result": False, "status": "UNKNOWN"}
-
-        return {"result": jd, "status": "COMPLETED", "check": last_check}
+            return False, "Config error"
