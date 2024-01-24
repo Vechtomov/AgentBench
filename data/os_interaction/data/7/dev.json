@@ -1,0 +1,18 @@
+[
+    {
+        "description": "Create a directory named 'backup', find all .txt files in the current directory, and move them to the 'backup' directory.",
+        "create": {
+            "init": "touch file1.txt file2.txt file3.doc file4.txt"
+        },
+        "evaluation": {
+            "check": [
+                "ls backup",
+                "echo 'file1.txt file2.txt file4.txt'",
+                {
+                    "language": "python",
+                    "file": "check/string-match.py"
+                }
+            ]
+        }
+    }
+]

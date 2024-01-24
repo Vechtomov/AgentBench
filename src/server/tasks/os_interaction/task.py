@@ -111,7 +111,7 @@ class Container:
             if container_info.status == 'running':
                 break
             time.sleep(0.1)
-        time.sleep(0.5)
+        # time.sleep(0.5)
 
     def __del__(self):
         try:
@@ -191,6 +191,7 @@ class JudgeConfig:
     check: list = None
     match: dict = None
     example_script: str = None
+    explanation: str = None
 
     def get_evaluation_type(self):
         if self.check:

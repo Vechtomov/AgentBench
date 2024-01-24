@@ -47,8 +47,8 @@ def main():
         ConfigLoader().load_from(agents_file)["gpt-3.5-turbo-0613"]
     ).create()
 
-    config_path = data_folder / "data" / "7" / "small.json"
-    # config_path = data_folder / "data" / "7" / "tiny.json"
+    config_path = data_folder / "data" / "7" / "simple.json"
+    # config_path = data_folder / "data" / "7" / "dev.json"
     script_root_dir = data_folder / "scripts" / "7"
     configs = load_configs(
         config_path=str(config_path), script_root_dir=script_root_dir

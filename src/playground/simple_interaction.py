@@ -1,7 +1,8 @@
 import time
 from src.client.agent import AgentClient
 from src.playground.prompts import SYSTEM_PROMPT, ONE_SHOT
-from src.server.tasks.os_interaction.task import Container, JudgeConfig
+from src.playground.task_config import TaskConfig
+from src.server.tasks.os_interaction.task import Container
 from src.typings.output import AgentOutput
 from src.typings.status import AgentOutputStatus
 import re
@@ -18,6 +19,14 @@ class TaskStatus(Enum):
     AGENT_VALIDATION_FAILED = auto()
     AGENT_INVALID_ACTION = auto()
     TASK_LIMIT_REACHED = auto()
+    NUMBER_OF_ACTIONS_FAILED = auto()
+
+
+class Stages(Enum):
+    FIRST_ATTEMPT = auto()
+    SECOND_ATTEMPT = auto()
+    HINT = auto()
+    SOLUTION = auto()
 
 
 def extract_action(raw: str):
@@ -25,28 +34,26 @@ def extract_action(raw: str):
     act_pattern = r"Act:\s*(.+)"
 
     think = re.findall(think_pattern, raw)
-    act = re.findall(act_pattern, raw)
+    actions = re.findall(act_pattern, raw)
+
+    if len(actions) != 1:
+        return None
 
     ret = {"thought": "\n".join(think), "action": None, "content": None}
 
-    # reversly iterate over the action list
-    for action in act[::-1]:
-        if action.lower().startswith("bash"):
-            ret["action"] = "bash"
-            break
-        if action.lower().startswith("finish"):
-            ret["action"] = "commit"
-            break
-        if action.lower().startswith("answer"):
-            content = action[6:].strip()
-            left_par_pos = content.find("(")
-            right_par_pos = content.rfind(")")
-            if left_par_pos == -1 or right_par_pos == -1:
-                continue
-            content = content[left_par_pos + 1 : right_par_pos]
-            ret["action"] = "commit"
-            ret["content"] = content
-            break
+    action = actions[0]
+
+    if action.lower().startswith("bash"):
+        ret["action"] = "bash"
+    elif action.lower().startswith("finish"):
+        ret["action"] = "commit"
+    elif action.lower().startswith("answer"):
+        content = action[6:].strip()
+        left_par_pos = content.find("(")
+        right_par_pos = content.rfind(")")
+        content = content[left_par_pos + 1 : right_par_pos]
+        ret["action"] = "commit"
+        ret["content"] = content
 
     if ret["action"] == "bash":
         # extract from ```bash to ```
@@ -63,7 +70,7 @@ ports_generator = iter(itertools.cycle(ports))
 
 
 class OSSimpleInteraction:
-    def __init__(self, config: JudgeConfig, client: AgentClient) -> None:
+    def __init__(self, config: TaskConfig, client: AgentClient) -> None:
         self.config = config
         self.client = client
         self.history = []
@@ -94,23 +101,38 @@ class OSSimpleInteraction:
         logging.info(self.config.description)
         logging.info("----------HISTORY----------")
 
-        num_attempts = 2
         result = False
         check_details = None
 
-        for i in range(1, num_attempts + 1):
+        stages = [Stages.FIRST_ATTEMPT, Stages.SECOND_ATTEMPT, Stages.HINT]
+        num_attempts = len(stages) - 1
+
+        for i, s in enumerate(stages):
             status, info = self._round()
             if status == TaskStatus.ANSWER:
                 result, check_details = self._evaluate(answer=info)
                 if result or i == num_attempts:
                     break
 
-                self.history.append(
-                    {
-                        "role": "user",
-                        "content": "This is the wrong answer, I give you another attempt. Try to think carefully and check your answer.",
-                    }
-                )
+                next_stage = stages[i + 1]
+                if next_stage == Stages.SECOND_ATTEMPT:
+                    self.history.append(
+                        {
+                            "role": "user",
+                            "content": "This is the wrong answer, I give you another attempt. Try to think carefully and check your answer.",
+                        }
+                    )
+                elif next_stage == Stages.HINT:
+                    if self.config.explanation is not None:
+                        self.history.append(
+                            {
+                                "role": "user",
+                                "content": "This is the wrong answer, I give you a hint. You should follow these steps: "
+                                + self.config.explanation,
+                            }
+                        )
+                    else:
+                        break
 
             else:
                 if i == num_attempts:
@@ -123,21 +145,28 @@ class OSSimpleInteraction:
                     self.history.append(
                         {
                             "role": "user",
-                            "content": f"Looks like you provided invalid action name: {info}",
+                            "content": f"Error: Looks like you provided invalid action name: {info}",
                         }
                     )
                 elif status == TaskStatus.AGENT_VALIDATION_FAILED:
                     self.history.append(
                         {
                             "role": "user",
-                            "content": "Looks like you didn't provide the action",
+                            "content": "Error: Looks like you didn't provide a valid action",
                         }
                     )
                 elif status == TaskStatus.TASK_LIMIT_REACHED:
                     self.history.append(
                         {
                             "role": "user",
-                            "content": "Looks like you have almost reached the limit of attempts. Try to change your strategy.",
+                            "content": "Warning: Looks like you have almost reached the limit of attempts. Maybe you trying the same thing? Try to change your strategy.",
+                        }
+                    )
+                elif status == TaskStatus.NUMBER_OF_ACTIONS_FAILED:
+                    self.history.append(
+                        {
+                            "role": "user",
+                            "content": "Error: You should provide only one action at a conversation round.",
                         }
                     )
 
@@ -151,9 +180,6 @@ class OSSimpleInteraction:
         if self.config.init_script:
             for script in self.config.init_script:
                 self.container.execute_independent(script)
-
-        if self.config.start:
-            self.container.execute(self.config.start[1])
 
     def _round(self):
         for _ in range(self.round_limit):
@@ -175,7 +201,9 @@ class OSSimpleInteraction:
             )
 
             root = extract_action(root.content)
-            if "action" not in root:
+            if root is None:
+                return TaskStatus.NUMBER_OF_ACTIONS_FAILED, None
+            if "action" not in root or root["action"] is None:
                 return TaskStatus.AGENT_VALIDATION_FAILED, None
             if root["action"] not in ["bash", "commit"]:
                 return TaskStatus.AGENT_INVALID_ACTION, root["action"]
@@ -226,10 +254,8 @@ class OSSimpleInteraction:
                     config.match["regex"],
                 ]
         elif config.check:
-            params = [str(answer)]
+            params = [str(answer)] if answer is not None else []
             for script in config.check:
-                if script is None:
-                    script = config.example_script
                 response = self.container.execute_independent(script, *params)
                 if response.exit_code != 0:
                     details = list(map(lambda x: x.strip(), params))
